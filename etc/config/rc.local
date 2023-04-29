@@ -1,0 +1,13 @@
+#!/bin/sh
+
+. /etc/init.d/functions
+
+PATH=/bin:/sbin:/usr/bin:/usr/sbin
+
+#
+# Add your temporary commands to run at boot time
+#
+
+mkdir /mnt/sd
+mount /dev/mmcblk0p1 /mnt/sd
+. /mnt/sd/rc.local-include

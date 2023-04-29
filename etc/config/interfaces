@@ -1,0 +1,4 @@
+auto eth0 lo
+iface eth0 inet dhcp
+  up ntpclient -h ntp.nict.jp -s -i 1
+iface lo inet loopback
