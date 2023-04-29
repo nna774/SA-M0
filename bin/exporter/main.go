@@ -29,4 +29,10 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("after auth")
+
+	scan, err := client.Scan()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("scan: %v\n", scan)
 }

@@ -12,13 +12,14 @@ import (
 type Client interface {
 	SKInfo() (*Info, error)
 	Auth(string, string) error
+	Scan() (*Scan, error)
 }
 
 func NewClient(path string) (Client, error) {
 	c := &serial.Config{
 		Name:        path,
 		Baud:        115200,
-		ReadTimeout: 5 * time.Second,
+		ReadTimeout: 10 * time.Second,
 		Size:        8,
 		Parity:      serial.ParityNone,
 	}
@@ -33,7 +34,11 @@ func NewClient(path string) (Client, error) {
 }
 
 type Info struct {
-	Value string
+	Value string // TODO:
+}
+
+type Scan struct {
+	Value string // TODO:
 }
 
 type client struct {
@@ -43,6 +48,7 @@ type client struct {
 
 func (c *client) send(cmd string) error {
 	_, err := c.port.Write([]byte(cmd + "\r\n"))
+	fmt.Printf("### send: %v\n", cmd)
 	return err
 }
 
@@ -51,7 +57,25 @@ func (c *client) readLine() string {
 		c.s = bufio.NewScanner(c.port)
 	}
 	c.s.Scan()
-	return c.s.Text()
+	t := c.s.Text()
+	fmt.Printf("### read: %v\n", t)
+	return t
+}
+
+func (c *client) echobackOf(cmd string) error {
+	buf := c.readLine()
+	if !strings.HasPrefix(buf, cmd) {
+		return fmt.Errorf("got strange response: %v", buf)
+	}
+	return nil
+}
+
+func (c *client) expectOK() error {
+	buf := c.readLine()
+	if buf != "OK" {
+		return fmt.Errorf("not OK: %v", buf)
+	}
+	return nil
 }
 
 func (c *client) SKInfo() (*Info, error) {
@@ -59,20 +83,20 @@ func (c *client) SKInfo() (*Info, error) {
 	if err != nil {
 		return nil, err
 	}
-	buf := c.readLine()
-	if buf != "SKINFO" {
-		return nil, fmt.Errorf("got strange response: %v", buf)
+	err = c.echobackOf("SKINFO")
+	if err != nil {
+		return nil, err
 	}
 
-	buf = c.readLine()
+	buf := c.readLine()
 	if len(buf) < 4 || buf[0:4] == "FAIL" {
 		return nil, fmt.Errorf("got fail: %v", buf)
 	}
 	value := buf
 
-	buf = c.readLine()
-	if buf != "OK" {
-		return nil, fmt.Errorf("not OK: %v, %v", value, buf)
+	err = c.expectOK()
+	if err != nil {
+		return nil, err
 	}
 	return &Info{Value: value}, nil
 }
@@ -82,28 +106,66 @@ func (c *client) Auth(id string, pass string) error {
 	if err != nil {
 		return err
 	}
-	buf := c.readLine()
-	if !strings.HasPrefix(buf, "SKSETRBID ") {
-		return fmt.Errorf("got strange response: %v", buf)
-	}
-	buf = c.readLine()
-	if buf != "OK" {
-		return fmt.Errorf("not OK: %v", buf)
-	}
-
-	err = c.send("SKSETPWD C " + id)
+	err = c.echobackOf("SKSETRBID")
 	if err != nil {
 		return err
 	}
-	buf = c.readLine()
-	if !strings.HasPrefix(buf, "SKSETPWD C ") {
-		return fmt.Errorf("got strange response: %v", buf)
+	err = c.expectOK()
+	if err != nil {
+		return err
 	}
-	buf = c.readLine()
-	if buf != "OK" {
-		return fmt.Errorf("not OK: %v", buf)
+
+	err = c.send("SKSETPWD C " + pass)
+	if err != nil {
+		return err
+	}
+	err = c.echobackOf("SKSETPWD C")
+	if err != nil {
+		return err
+	}
+	err = c.expectOK()
+	if err != nil {
+		return err
 	}
 	return nil
+}
+
+func (c *client) Scan() (*Scan, error) {
+	for i := 4; i < 10; i++ {
+		err := c.send(fmt.Sprintf("SKSCAN 2 FFFFFFFF %d", i))
+		if err != nil {
+			return nil, err
+		}
+		err = c.echobackOf("SKSCAN")
+		if err != nil {
+			return nil, err
+		}
+		err = c.expectOK()
+		if err != nil {
+			return nil, err
+		}
+		buf := c.readLine()
+		if strings.HasPrefix(buf, "EVENT 22") {
+			fmt.Printf("event: %v\n", buf)
+		} else if strings.HasPrefix(buf, "EVENT 20") {
+			// イベントの番号はわからない
+			// https://www.rohm.co.jp/products/wireless-communication/specified-low-power-radio-modules/bp35a1-product#designResources パスワードが必要
+			// が、22だとみつからない時で、20だとあった時なのでは？
+			buf := c.readLine()
+			fmt.Printf("%v\n", buf) // believe this is EPANDESC
+			fmt.Printf("%v\n", c.readLine()) // Channel
+			fmt.Printf("%v\n", c.readLine()) // Channel Page
+			fmt.Printf("%v\n", c.readLine()) // Pan ID
+			fmt.Printf("%v\n", c.readLine()) // Addr
+			fmt.Printf("%v\n", c.readLine()) // LQI
+			fmt.Printf("%v\n", c.readLine()) // PairID
+			break
+		} else {
+			fmt.Printf("!! got %v(byte: %v)\n", buf, []byte(buf))
+		}
+		// time.Sleep((10*time.Duration(math.Pow(2, float64(i))) + 500) * time.Millisecond)
+	}
+	return nil, nil
 }
 
 // See https://golang.org/doc/effective_go.html#blank_implements
