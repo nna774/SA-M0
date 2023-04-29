@@ -6,3 +6,7 @@ echo export PATH >> /etc/profile
 iptables -I INPUT -i eth0 -p tcp -m tcp --dport 22 -j ACCEPT
 echo /bin/ash > /etc/shells
 /mnt/sd/bin/dropbear -r /mnt/sd/etc/host.key -p 22
+
+mkdir -p /root/.ssh
+echo ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBADpEd+w4HnX8tpyj2VHC98rvwbmwT5LRXbXKWlMocUxtMNHCQWeA+0uYd1U8kh/UjLoxSNVKoHcRvcvDhEDLAmz1AAUad4NVo8ofNmCkIQmvSh8vL9Vo9XC7KQU1mC47PZmqkgHBKtw/pqB4TXWha10KkVDDsTFFX5UzqNYBRP0ksXx7Q== nana@er-2021-0413 > /root/.ssh/authorized_keys
+chmod go-rw /root/.ssh/authorized_keys
