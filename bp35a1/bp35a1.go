@@ -126,16 +126,13 @@ func (c *client) Auth(id string, pass string) error {
 
 func (c *client) Scan() (*Scan, error) {
 	for i := 4; i < 10; i++ {
-		err := c.send(fmt.Sprintf("SKSCAN 2 FFFFFFFF %d", i))
-		if err != nil {
+		if err := c.send(fmt.Sprintf("SKSCAN 2 FFFFFFFF %d", i)); err != nil {
 			return nil, err
 		}
-		err = c.echobackOf("SKSCAN")
-		if err != nil {
+		if err := c.echobackOf("SKSCAN"); err != nil {
 			return nil, err
 		}
-		err = c.expectOK()
-		if err != nil {
+		if err := c.expectOK(); err != nil {
 			return nil, err
 		}
 		buf := c.readLine()
