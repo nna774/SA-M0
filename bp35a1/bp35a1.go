@@ -102,29 +102,23 @@ func (c *client) SKInfo() (*Info, error) {
 }
 
 func (c *client) Auth(id string, pass string) error {
-	err := c.send("SKSETRBID " + id)
-	if err != nil {
+	if err := c.send("SKSETRBID " + id); err != nil {
 		return err
 	}
-	err = c.echobackOf("SKSETRBID")
-	if err != nil {
+	if err := c.echobackOf("SKSETRBID"); err != nil {
 		return err
 	}
-	err = c.expectOK()
-	if err != nil {
+	if err := c.expectOK(); err != nil {
 		return err
 	}
 
-	err = c.send("SKSETPWD C " + pass)
-	if err != nil {
+	if err := c.send("SKSETPWD C " + pass); err != nil {
 		return err
 	}
-	err = c.echobackOf("SKSETPWD C")
-	if err != nil {
+	if err := c.echobackOf("SKSETPWD C"); err != nil {
 		return err
 	}
-	err = c.expectOK()
-	if err != nil {
+	if err := c.expectOK(); err != nil {
 		return err
 	}
 	return nil
