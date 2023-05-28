@@ -148,7 +148,7 @@ func (c *client) Scan() (*Scan, error) {
 		if strings.HasPrefix(buf, "EVENT 22") {
 			fmt.Printf("event: %v\n", buf)
 		} else if strings.HasPrefix(buf, "EVENT 20") {
-		  // https://www.rohm.co.jp/products/wireless-communication/specified-low-power-radio-modules/bp35a1-product#designResources パスワードが必要(スタートアップマニュアルに書いてある)
+			// https://www.rohm.co.jp/products/wireless-communication/specified-low-power-radio-modules/bp35a1-product#designResources パスワードが必要(スタートアップマニュアルに書いてある)
 			// みつかる度に20が返り、22が来ると終了。
 			if buf := c.readLine(); buf != "EPANDESC" {
 				return nil, fmt.Errorf("got strange response: %v", buf)
