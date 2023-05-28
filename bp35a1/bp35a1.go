@@ -13,13 +13,16 @@ type Client interface {
 	SKInfo() (*Info, error)
 	Auth(string, string) error
 	Scan() (*Scan, error)
+	SetChannel(string, string) error
+	SKLL64(string) (string, error)
+	SKJOIN(string) error
 }
 
 func NewClient(path string) (Client, error) {
 	c := &serial.Config{
 		Name:        path,
 		Baud:        115200,
-		ReadTimeout: 10 * time.Second,
+		ReadTimeout: 15 * time.Second,
 		Size:        8,
 		Parity:      serial.ParityNone,
 	}
@@ -38,7 +41,13 @@ type Info struct {
 }
 
 type Scan struct {
-	Value string // TODO:
+	// ちゃんとintとかにしたほうがいい気もするけど、どうせstringで送るんだよな……。
+	Channel     string
+	ChannelPage string
+	PanID       string
+	Addr        string
+	LQI         string
+	PairID      string
 }
 
 type client struct {
@@ -119,6 +128,11 @@ func (c *client) Auth(id string, pass string) error {
 	return nil
 }
 
+func cut(x string) string {
+	_, ret, _ := strings.Cut(x, ":")
+	return ret
+}
+
 func (c *client) Scan() (*Scan, error) {
 	for i := 4; i < 10; i++ {
 		if err := c.send(fmt.Sprintf("SKSCAN 2 FFFFFFFF %d", i)); err != nil {
@@ -134,24 +148,93 @@ func (c *client) Scan() (*Scan, error) {
 		if strings.HasPrefix(buf, "EVENT 22") {
 			fmt.Printf("event: %v\n", buf)
 		} else if strings.HasPrefix(buf, "EVENT 20") {
-			// イベントの番号はわからない
-			// https://www.rohm.co.jp/products/wireless-communication/specified-low-power-radio-modules/bp35a1-product#designResources パスワードが必要
-			// が、22だとみつからない時で、20だとあった時なのでは？
-			buf := c.readLine()
-			fmt.Printf("%v\n", buf) // believe this is EPANDESC
-			fmt.Printf("%v\n", c.readLine()) // Channel
-			fmt.Printf("%v\n", c.readLine()) // Channel Page
-			fmt.Printf("%v\n", c.readLine()) // Pan ID
-			fmt.Printf("%v\n", c.readLine()) // Addr
-			fmt.Printf("%v\n", c.readLine()) // LQI
-			fmt.Printf("%v\n", c.readLine()) // PairID
-			break
+		  // https://www.rohm.co.jp/products/wireless-communication/specified-low-power-radio-modules/bp35a1-product#designResources パスワードが必要(スタートアップマニュアルに書いてある)
+			// みつかる度に20が返り、22が来ると終了。
+			if buf := c.readLine(); buf != "EPANDESC" {
+				return nil, fmt.Errorf("got strange response: %v", buf)
+			}
+			s := &Scan{}
+			s.Channel = cut(c.readLine())
+			s.ChannelPage = cut(c.readLine())
+			s.PanID = cut(c.readLine())
+			s.Addr = cut(c.readLine())
+			s.LQI = cut(c.readLine())
+			s.PairID = cut(c.readLine())
+
+			if buf := c.readLine(); !strings.HasPrefix(buf, "EVENT 22") {
+				return s, fmt.Errorf("got unknown event: %v", buf)
+			}
+			return s, nil
 		} else {
 			fmt.Printf("!! got %v(byte: %v)\n", buf, []byte(buf))
 		}
 		// time.Sleep((10*time.Duration(math.Pow(2, float64(i))) + 500) * time.Millisecond)
 	}
-	return nil, nil
+	return nil, fmt.Errorf("not found")
+}
+
+func (c *client) SetChannel(channel string, panID string) error {
+	if err := c.send("SKSREG S2 " + channel); err != nil {
+		return err
+	}
+	if err := c.echobackOf("SKSREG"); err != nil {
+		return err
+	}
+	if err := c.expectOK(); err != nil {
+		return err
+	}
+
+	if err := c.send("SKSREG S3 " + panID); err != nil {
+		return err
+	}
+	if err := c.echobackOf("SKSREG"); err != nil {
+		return err
+	}
+	if err := c.expectOK(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *client) SKLL64(addr string) (string, error) {
+	if err := c.send("SKLL64 " + addr); err != nil {
+		return "", err
+	}
+	if err := c.echobackOf("SKLL64"); err != nil {
+		return "", err
+	}
+	return c.readLine(), nil
+}
+
+func (c *client) SKJOIN(addr string) error {
+	if err := c.send("SKJOIN " + addr); err != nil {
+		return err
+	}
+	if err := c.echobackOf("SKJOIN"); err != nil {
+		return err
+	}
+	if err := c.expectOK(); err != nil {
+		return err
+	}
+
+	buf := ""
+	for {
+		buf = c.readLine()
+		if strings.HasPrefix(buf, "EVENT 25") {
+			fmt.Printf("SKJOIN success!!\n")
+			return nil
+		} else if strings.HasPrefix(buf, "EVENT 24") {
+			fmt.Printf("SKJOIN failed!\n")
+			return fmt.Errorf("SKJOIN failed")
+		} else if strings.HasPrefix(buf, "EVENT 21") {
+			fmt.Printf("SKJOIN packet sent\n")
+		} else if strings.HasPrefix(buf, "EVENT 02") {
+			fmt.Printf("NA reieved\n")
+		}
+	}
+
+	return fmt.Errorf("got unknown event: %v", buf)
 }
 
 // See https://golang.org/doc/effective_go.html#blank_implements

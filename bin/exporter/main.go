@@ -34,5 +34,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	fmt.Printf("scan: %v\n", scan)
+	err = client.SetChannel(scan.Channel, scan.PanID)
+	if err != nil {
+		panic(err)
+	}
+
+	addr, err := client.SKLL64(scan.Addr)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("addr: %v\n", addr)
+
+	err = client.SKJOIN(addr)
+	if err != nil {
+		panic(err)
+	}
 }
