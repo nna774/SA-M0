@@ -63,28 +63,24 @@ func (c *client) readLine() string {
 }
 
 func (c *client) echobackOf(cmd string) error {
-	buf := c.readLine()
-	if !strings.HasPrefix(buf, cmd) {
+	if buf := c.readLine(); !strings.HasPrefix(buf, cmd) {
 		return fmt.Errorf("got strange response: %v", buf)
 	}
 	return nil
 }
 
 func (c *client) expectOK() error {
-	buf := c.readLine()
-	if buf != "OK" {
+	if buf := c.readLine(); buf != "OK" {
 		return fmt.Errorf("not OK: %v", buf)
 	}
 	return nil
 }
 
 func (c *client) SKInfo() (*Info, error) {
-	err := c.send("SKINFO")
-	if err != nil {
+	if err := c.send("SKINFO"); err != nil {
 		return nil, err
 	}
-	err = c.echobackOf("SKINFO")
-	if err != nil {
+	if err := c.echobackOf("SKINFO"); err != nil {
 		return nil, err
 	}
 
@@ -94,8 +90,7 @@ func (c *client) SKInfo() (*Info, error) {
 	}
 	value := buf
 
-	err = c.expectOK()
-	if err != nil {
+	if err := c.expectOK(); err != nil {
 		return nil, err
 	}
 	return &Info{Value: value}, nil
