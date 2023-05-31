@@ -10,3 +10,5 @@ mkdir -p bin
 [ -e bin/scp] || $CURL https://storage.googleapis.com/nona7-data/tmp/scp -o bin/scp && chmod +x bin/scp
 
 [ -e etc/host.key ] || ./bin/dropbearkey -t ed25519 -f etc/host.key
+
+# TODO: https://github.com/nna774/ud-co2s-exporter

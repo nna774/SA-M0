@@ -10,3 +10,6 @@ echo /bin/ash > /etc/shells
 mkdir -p /root/.ssh
 echo ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBADpEd+w4HnX8tpyj2VHC98rvwbmwT5LRXbXKWlMocUxtMNHCQWeA+0uYd1U8kh/UjLoxSNVKoHcRvcvDhEDLAmz1AAUad4NVo8ofNmCkIQmvSh8vL9Vo9XC7KQU1mC47PZmqkgHBKtw/pqB4TXWha10KkVDDsTFFX5UzqNYBRP0ksXx7Q== nana@er-2021-0413 > /root/.ssh/authorized_keys
 chmod go-rw /root/.ssh/authorized_keys
+
+# run https://github.com/nna774/ud-co2s-exporter
+nohup /mnt/sd/bin/ud-co2s-exporter /dev/ttyACM0 >/dev/null &
