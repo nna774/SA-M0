@@ -16,7 +16,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("info: %v\n", info)
+	fmt.Printf("info: %+v\n", info)
 
 	id := os.Getenv("ID")
 	pass := os.Getenv("PASS")
@@ -35,7 +35,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("scan: %v\n", scan)
+	fmt.Printf("scan: %+v\n", scan)
 	err = client.SetChannel(scan.Channel, scan.PanID)
 	if err != nil {
 		panic(err)
@@ -45,7 +45,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("addr: %v\n", addr)
+	fmt.Printf("addr: %+v\n", addr)
 
 	err = client.SKJOIN(addr)
 	if err != nil {
