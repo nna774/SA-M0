@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/nna774/sa-m0/bp35a1"
 )
@@ -50,5 +51,14 @@ func main() {
 	err = client.SKJOIN(addr)
 	if err != nil {
 		panic(err)
+	}
+
+	for {
+		val, err := client.ReadInstantaneousPower(addr)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("val: %+v\n", val)
+		time.Sleep(1 * time.Second)
 	}
 }
