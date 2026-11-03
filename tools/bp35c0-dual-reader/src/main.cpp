@@ -608,6 +608,14 @@ void saveCredential(Module &m, const String &name, const String &id, const Strin
   m.credential = {name, id, password, true};
 }
 
+// id/passwordは変えず、ログ・/metricsのラベルに使う名前だけを変える。
+// JOIN済みのセッションには影響しない(再JOINは不要)。
+void renameCredential(Module &m, const String &name) {
+  const String prefix = String(m.tag);
+  prefs.putString((prefix + "name").c_str(), name);
+  m.credential.name = name;
+}
+
 void clearCredential(Module &m) {
   const String prefix = String(m.tag);
   prefs.remove((prefix + "name").c_str());
@@ -628,6 +636,7 @@ void printProvisionStatus(Module &m) {
 void handleHostLine(const String &line) {
   static const char kSetCred[] = "!setcred ";
   static const char kClearCred[] = "!clearcred ";
+  static const char kRename[] = "!rename ";
   static const char kSetWifi[] = "!setwifi ";
   static const char kClearWifi[] = "!clearwifi";
 
@@ -694,8 +703,26 @@ void handleHostLine(const String &line) {
     return;
   }
 
+  if (line.startsWith(kRename)) {
+    const String rest = line.substring(strlen(kRename));
+    const int sp = rest.indexOf(' ');
+    if (sp < 0) {
+      Serial.println("usage: !rename <1|2> <name>");
+      return;
+    }
+    Module *m = findModule(rest.charAt(0));
+    if (m == nullptr) {
+      Serial.println("unknown module");
+      return;
+    }
+    const String name = rest.substring(sp + 1);
+    renameCredential(*m, name);
+    Serial.printf("[%c] 名前を%sに変更した\r\n", m->tag, name.c_str());
+    return;
+  }
+
   Serial.println("unknown command. `!setcred <1|2> <name> <id> <password>` / `!clearcred <1|2>` / "
-                  "`!setwifi <ssid> <password>` / `!clearwifi`");
+                  "`!rename <1|2> <name>` / `!setwifi <ssid> <password>` / `!clearwifi`");
 }
 
 }  // namespace
@@ -734,7 +761,9 @@ void setup() {
     }
   }
 
-  // Wi-Fi未接続でもserver.begin()自体は害がない。接続後にクライアントから届くようになる。
+  // WiFi.mode()を呼ばないとlwipのtcpipタスクが起動せず、server.begin()が
+  // "Invalid mbox"でクラッシュする(実機で踏んだ)。資格情報が無くても先に呼んでおく。
+  WiFi.mode(WIFI_STA);
   server.on("/metrics", handleMetrics);
   server.begin();
   if (wifiConfigured) {
@@ -749,9 +778,13 @@ void loop() {
   while (Serial.available()) {
     const char c = Serial.read();
     if (c != '\r' && c != '\n') {
+      // ネイティブUSB CDCコンソールは何も返さないので、ホスト側で打った文字を
+      // 自前でエコーバックしないと入力が見えない(実機で踏んだ)。
+      Serial.write(c);
       hostLine += c;
       continue;
     }
+    Serial.write("\r\n");
     if (!hostLine.isEmpty()) {
       handleHostLine(hostLine);
       hostLine = "";

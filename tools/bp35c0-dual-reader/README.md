@@ -16,15 +16,19 @@ BルートID・パスワードはファームのソースコードに焼き込�
 初回起動時（またはNVSが空の状態）はシリアルモニタから以下を打つ:
 
 ```
-!setcred 1 denryoku 00112233445566778899AABBCCDDEEFF 123456789012
-!setcred 2 kyuutouki 0123456789ABCDEF0123456789ABCDEF 210987654321
+!setcred 1 電灯 00112233445566778899AABBCCDDEEFF 123456789012
+!setcred 2 電力 0123456789ABCDEF0123456789ABCDEF 210987654321
 ```
 
 `!setcred <1|2> <name> <id> <password>` — `id`は自動で大文字化される(Bルートは大文字
 でなければメーターが応答しない。BP35C0.md参照)。書き込むと同時にそのモジュールの
-JOINシーケンスが即座に始まる。`name`はログ表示用のラベル(スペース不可)。
+JOINシーケンスが即座に始まる。`name`はログ・`/metrics`のラベルに使う(スペース不可)。
+`電灯`/`電力`は低圧契約の種別名(一般家庭用の従量電灯契約、水道給湯器等の低圧電力契約)。
 
 消去は `!clearcred <1|2>`。書き直したい時はこれで一旦消してから`!setcred`し直す。
+
+`name`だけ変えたい場合はid/passwordを打ち直す必要はなく `!rename <1|2> <name>` でよい
+(JOIN済みのセッションはそのまま、ログ・`/metrics`のラベルだけ変わる)。
 
 NVSは電源を切っても保持されるので、一度設定すれば以降は自動でJOINまで進む。
 
@@ -77,6 +81,9 @@ Wi-Fi認証情報もBルート認証情報と同様、ソースには焼き込�
 `Wi-Fi接続成功: IP=... (http://.../metrics)`が出るので、そのIPを家のPrometheusの
 scrape対象に加える。SSID・パスワードにスペースは使えない(最初の空白で区切る実装のため)。
 
+ネイティブUSB CDCコンソールはローカルエコーを返さないので、打った文字が見えないように
+思えることがある(ファーム側で明示的にエコーバックしているので、実際には反映されている)。
+
 ポート80で`/metrics`をPrometheusテキスト形式で常時提供する(Wi-Fi接続前でも
 `server.begin()`自体は実行されるので、繋がった瞬間から応答できる)。認証・TLSは
 置いていない。**家庭内LAN限定での利用を前提とする**(tsdb.md参照。VictoriaMetricsへの
@@ -85,11 +92,11 @@ scrape対象に加える。SSID・パスワードにスペースは使えない(
 メトリクス名はBP35A1向けの既存Go実装(`bin/exporter`)と揃えて`sam0_`始まりにしている。
 
 ```
-sam0_instantaneous_power_watt{meter="denryoku"} 330
-sam0_instantaneous_current_ampere{meter="denryoku",phase="r"} 0.9
-sam0_instantaneous_current_ampere{meter="denryoku",phase="t"} 4.3
-sam0_cumulative_energy_kwh_total{meter="denryoku"} 711.282
-sam0_last_reading_seconds{meter="denryoku"} 12.3
+sam0_instantaneous_power_watt{meter="電灯"} 330
+sam0_instantaneous_current_ampere{meter="電灯",phase="r"} 0.9
+sam0_instantaneous_current_ampere{meter="電灯",phase="t"} 4.3
+sam0_cumulative_energy_kwh_total{meter="電灯"} 711.282
+sam0_last_reading_seconds{meter="電灯"} 12.3
 ```
 
 - `phase="t"`は単相2線式のメーター(T相「該当なし」)では出力されない。欠落自体が判別情報になる
